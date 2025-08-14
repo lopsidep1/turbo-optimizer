@@ -131,26 +131,74 @@ CloseCorner.Parent = CloseBtn
 -- 🔑 SIN KEYS DE RESPALDO (Para forzar uso de Linkvertise)
 local backupKeys = {} -- Vacío
 
--- 🌐 FUNCIÓN: Obtener keys de API
+-- 🌐 FUNCIÓN MEJORADA: Obtener keys de API
 local function getKeysFromAPI()
-    local success, result = pcall(function()
-        return HttpService:GetAsync(API_URL)
-    end)
+    StatusLabel.Text = "🔄 Conectando API..."
+    StatusLabel.TextColor3 = Color3.new(1, 1, 0)
     
-    if success and result then
-        local keys = {}
-        for key in result:gmatch("TURBO%-[A-Z0-9]+") do
-            table.insert(keys, key)
+    -- Múltiples intentos con diferentes métodos
+    local attempts = {
+        API_URL,
+        API_URL .. "/",
+        API_URL .. "?cache=" .. tick(),
+        "https://turbo-keys-api.onrender.com/keys"  -- Endpoint alternativo
+    }
+    
+    for i, url in ipairs(attempts) do
+        local success, result = pcall(function()
+            local response = HttpService:GetAsync(url, false)  -- Sin cache
+            return response
+        end)
+        
+        if success and result then
+            -- Intentar parsear las keys
+            local keys = {}
+            
+            -- Método 1: Buscar patrón TURBO-
+            for key in result:gmatch("TURBO%-[A-Z0-9]+") do
+                table.insert(keys, key)
+            end
+            
+            -- Método 2: Si es JSON
+            if #keys == 0 then
+                local jsonSuccess, jsonData = pcall(function()
+                    return HttpService:JSONDecode(result)
+                end)
+                
+                if jsonSuccess and jsonData then
+                    if jsonData.keys then
+                        keys = jsonData.keys
+                    elseif type(jsonData) == "table" then
+                        for _, v in pairs(jsonData) do
+                            if type(v) == "string" and v:match("TURBO%-") then
+                                table.insert(keys, v)
+                            end
+                        end
+                    end
+                end
+            end
+            
+            if #keys > 0 then
+                StatusLabel.Text = "✅ API Conectada (" .. #keys .. " keys)"
+                StatusLabel.TextColor3 = Color3.new(0, 1, 0)
+                
+                -- Mostrar primera key en el input y botón copiar
+                KeyBox.Text = keys[1]
+                CopyBtn.Visible = true
+                
+                return keys
+            end
+        else
+            -- Log del error (solo para debug)
+            if i == 1 then
+                print("Error API intento " .. i .. ":", result)
+            end
         end
         
-        if #keys > 0 then
-            StatusLabel.Text = "✅ API Conectada"
-            StatusLabel.TextColor3 = Color3.new(0, 1, 0)
-            return keys
-        end
+        wait(0.5) -- Espera entre intentos
     end
     
-    -- Si falla API, NO mostrar keys de respaldo
+    -- Si todos los intentos fallan
     StatusLabel.Text = "❌ Conecta a internet y obtén key"
     StatusLabel.TextColor3 = Color3.new(1, 0, 0)
     KeyBox.Text = ""
