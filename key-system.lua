@@ -1,22 +1,20 @@
--- 🚀 TURBO OPTIMIZER — Key System SOLO API (con diagnóstico real)
--- Autor: lopsidep
+-- 🚀 TURBO OPTIMIZER — Key System HÍBRIDO (JSON + HTML)
+-- Mismo diseño que GUIHERMOSO.txt, motor de validación adaptado
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 -- ⚙️ CONFIG
-local API_URL = "https://turbo-keys-api.onrender.com/keys" -- Debe devolver JSON: ["TURBO-...","..."]
+local API_URL = "https://turbo-keys-api.onrender.com/keys" -- En modo JSON: /keys; en modo HTML: cámbialo a raíz si quieres
 local MAIN_SCRIPT = "https://raw.githubusercontent.com/lopsidep1/Opti/refs/heads/main/v_2.6_optimizer.lua"
 local LINKVERTISE_URL = "https://link-hub.net/1381493/QFlC4jzoSzbm"
 
 -- 🧠 Estado
-local KEYS_CACHE = nil
-local CACHE_AT = 0
+local KEYS_CACHE, CACHE_AT, FETCHING = nil, 0, false
 local CACHE_TTL = 60 -- segundos
-local FETCHING = false
 
--- 🖼️ GUI
+-- 🖼 GUI (idéntica al original)
 local gui = Instance.new("ScreenGui")
 gui.Name = "KeySystem"
 gui.ResetOnSpawn = false
@@ -29,10 +27,8 @@ frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.Active = true
 frame.Draggable = true
 frame.Parent = gui
-
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
 
--- Botón Cerrar (X) — se queda
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 30, 0, 30)
 closeBtn.Position = UDim2.new(1, -35, 0, 5)
@@ -98,92 +94,69 @@ statusLabel.TextColor3 = Color3.new(1,1,0)
 statusLabel.Text = "Conectando a API..."
 statusLabel.Parent = frame
 
--- 🌐 Fetch con diagnóstico (RequestAsync)
+-- 🌐 Función híbrida: JSON o HTML
+local function parseKeys(body)
+    -- 1) Intentar JSON
+    local okJson, data = pcall(function()
+        return HttpService:JSONDecode(body)
+    end)
+    if okJson then
+        if typeof(data) == "table" then
+            -- Si es objeto y tiene .keys
+            if data.keys and typeof(data.keys) == "table" then
+                return data.keys
+            else
+                return data
+            end
+        end
+    end
+    -- 2) Si no es JSON válido, extraer TURBO-... del texto
+    local keys = {}
+    for key in body:gmatch("TURBO%-%w+") do
+        table.insert(keys, key)
+    end
+    return keys
+end
+
 local function fetchKeys(force)
     if FETCHING then return KEYS_CACHE or {} end
     if not force and KEYS_CACHE and (time() - CACHE_AT) < CACHE_TTL then
         return KEYS_CACHE
     end
-
     FETCHING = true
-    local url = API_URL .. "?nocache=" .. HttpService:GenerateGUID(false)
 
     local req = {
-        Url = url,
+        Url = API_URL .. "?nocache=" .. HttpService:GenerateGUID(false),
         Method = "GET",
-        Headers = {
-            ["Accept"] = "application/json",
-            ["Cache-Control"] = "no-cache",
-        }
+        Headers = { ["Cache-Control"] = "no-cache" }
     }
-
     local ok, res = pcall(function()
         return HttpService:RequestAsync(req)
     end)
-
-    if not ok then
-        print("[KeySystem] RequestAsync fallo:", res)
-        statusLabel.Text = "❌ Conecta a internet y obtén key"
+    if not ok or not res.Success then
+        statusLabel.Text = "❌ Error API (" .. tostring(res and res.StatusCode or "sin conexión") .. ")"
         statusLabel.TextColor3 = Color3.new(1,0,0)
         FETCHING = false
         return {}
     end
 
-    -- Log de diagnóstico
-    print(string.format("[KeySystem] GET %s -> success=%s status=%d len=%d",
-        url, tostring(res.Success), tonumber(res.StatusCode or 0), #(res.Body or "")))
-
-    if not res.Success then
-        -- Mensajes específicos por status
-        if res.StatusCode == 404 then
-            statusLabel.Text = "❌ API 404: revisa la ruta /keys"
-        elseif res.StatusCode == 403 then
-            statusLabel.Text = "❌ API 403: acceso denegado"
-        else
-            statusLabel.Text = "❌ Error API ("..tostring(res.StatusCode)..")"
-        end
-        statusLabel.TextColor3 = Color3.new(1,0,0)
-        FETCHING = false
-        return {}
-    end
-
-    -- Parse JSON estricto: debe ser un array de strings
-    local okJson, data = pcall(function()
-        return HttpService:JSONDecode(res.Body)
-    end)
-
-    if not okJson or type(data) ~= "table" then
-        print("[KeySystem] JSON inválido. Body (primeros 200 chars):", string.sub(res.Body or "",1,200))
-        statusLabel.Text = "❌ Respuesta inválida de la API"
-        statusLabel.TextColor3 = Color3.new(1,0,0)
-        FETCHING = false
-        return {}
-    end
-
-    -- Normalizar a strings y mayúsculas
-    local keys = {}
-    for _, v in ipairs(data) do
-        if type(v) == "string" then
-            table.insert(keys, v:upper())
-        end
-    end
-
+    local keys = parseKeys(res.Body or "")
     if #keys == 0 then
-        statusLabel.Text = "❌ Sin keys disponibles"
+        statusLabel.Text = "❌ Sin keys detectadas"
         statusLabel.TextColor3 = Color3.new(1,0,0)
         FETCHING = false
         return {}
     end
 
-    KEYS_CACHE = keys
-    CACHE_AT = time()
+    -- Normalizar
+    for i,k in ipairs(keys) do keys[i] = k:upper() end
+
+    KEYS_CACHE, CACHE_AT, FETCHING = keys, time(), false
     statusLabel.Text = "✅ API conectada"
     statusLabel.TextColor3 = Color3.new(0,1,0)
-    FETCHING = false
     return keys
 end
 
--- ✅ Validación: compara contra lista en API (no mostramos ni autocompletamos)
 local function validateKey(input)
     local key = (input or ""):gsub("%s+",""):upper()
     if key == "" then
@@ -191,27 +164,15 @@ local function validateKey(input)
         statusLabel.TextColor3 = Color3.new(1,0,0)
         return false
     end
-
-    -- Hasta 3 intentos con anticache
-    for attempt = 1, 3 do
-        local keys = fetchKeys(true)
-        if #keys > 0 then
-            if table.find(keys, key) then
-                return true
-            end
-        end
-        task.wait(0.6)
-    end
-    return false
+    local keys = fetchKeys(true)
+    return table.find(keys, key) ~= nil
 end
 
--- 🎛️ Eventos
+-- 🎛 Eventos
 validateBtn.MouseButton1Click:Connect(function()
     statusLabel.Text = "🔍 Validando..."
     statusLabel.TextColor3 = Color3.new(1,1,0)
-
-    local ok = validateKey(keyBox.Text)
-    if ok then
+    if validateKey(keyBox.Text) then
         statusLabel.Text = "✅ Key válida. Cargando..."
         statusLabel.TextColor3 = Color3.new(0,1,0)
         task.wait(0.4)
@@ -221,23 +182,9 @@ validateBtn.MouseButton1Click:Connect(function()
         if loaded then
             gui:Destroy()
         else
-            warn("[KeySystem] Error al cargar MAIN_SCRIPT:", err)
+            warn("[KeySystem] Error MAIN_SCRIPT:", err)
             statusLabel.Text = "❌ Error al cargar"
             statusLabel.TextColor3 = Color3.new(1,0,0)
         end
     else
-        statusLabel.Text = "❌ Key inválida o sin conexión"
-        statusLabel.TextColor3 = Color3.new(1,0,0)
-    end
-end)
-
-getKeyBtn.MouseButton1Click:Connect(function()
-    setclipboard(LINKVERTISE_URL)
-    statusLabel.Text = "🔗 Link copiado (ve al navegador)"
-    statusLabel.TextColor3 = Color3.fromRGB(0,180,255)
-end)
-
--- 🔄 Ping inicial (solo estado, sin mostrar keys)
-task.spawn(function()
-    local _ = fetchKeys(true)
-end)
+        status
