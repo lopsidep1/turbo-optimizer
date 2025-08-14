@@ -18,6 +18,7 @@ local ValidateBtn = Instance.new("TextButton")
 local GetKeyBtn = Instance.new("TextButton")
 local StatusLabel = Instance.new("TextLabel")
 local CopyBtn = Instance.new("TextButton")
+local CloseBtn = Instance.new("TextButton")
 
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
@@ -113,13 +114,22 @@ local CopyCorner = Instance.new("UICorner")
 CopyCorner.CornerRadius = UDim.new(0, 6)
 CopyCorner.Parent = CopyBtn
 
--- 🔑 KEYS DE RESPALDO
-local backupKeys = {
-    "TURBO-JZBNKSVVXBU11B97",
-    "TURBO-BNSALSTR2CYYI4ZX", 
-    "TURBO-J9TMDMPKD4A09DCR",
-    "TURBO-WRCTJ9OE3GJ22LUN"
-}
+-- Botón Cerrar (X)
+CloseBtn.Parent = Frame
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.new(1, 0, 0)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextScaled = true
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 15)
+CloseCorner.Parent = CloseBtn
+
+-- 🔑 SIN KEYS DE RESPALDO (Para forzar uso de Linkvertise)
+local backupKeys = {} -- Vacío
 
 -- 🌐 FUNCIÓN: Obtener keys de API
 local function getKeysFromAPI()
@@ -129,30 +139,24 @@ local function getKeysFromAPI()
     
     if success and result then
         local keys = {}
-        -- Buscar keys en formato TURBO-XXXXX
         for key in result:gmatch("TURBO%-[A-Z0-9]+") do
             table.insert(keys, key)
         end
         
         if #keys > 0 then
-            StatusLabel.Text = "✅ Conectado a API (" .. #keys .. " keys)"
+            StatusLabel.Text = "✅ API Conectada"
             StatusLabel.TextColor3 = Color3.new(0, 1, 0)
-            
-            -- Mostrar una key válida
-            KeyBox.Text = keys[1]
-            CopyBtn.Visible = true
-            
             return keys
         end
     end
     
-    -- Si falla, usar respaldo
-    StatusLabel.Text = "⚠️ Usando keys de respaldo"
-    StatusLabel.TextColor3 = Color3.new(1, 0.8, 0)
-    KeyBox.Text = backupKeys[1]
-    CopyBtn.Visible = true
+    -- Si falla API, NO mostrar keys de respaldo
+    StatusLabel.Text = "❌ Conecta a internet y obtén key"
+    StatusLabel.TextColor3 = Color3.new(1, 0, 0)
+    KeyBox.Text = ""
+    CopyBtn.Visible = false
     
-    return backupKeys
+    return {}
 end
 
 -- ✅ FUNCIÓN: Validar key
@@ -230,6 +234,11 @@ end)
 -- 🔗 EVENTO: Obtener key
 GetKeyBtn.MouseButton1Click:Connect(function()
     setclipboard("https://link-hub.net/1381493/QFlC4jzoSzbm")
+end)
+
+-- ❌ EVENTO: Cerrar GUI
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
 end)
 
 -- 🚀 INICIALIZAR
