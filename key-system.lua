@@ -1,24 +1,35 @@
--- 🚀 TURBO OPTIMIZER — Key System DEFINITIVO HÍBRIDO
--- GUI idéntico al de GUIHERMOSO.txt, tolerante a /keys (JSON) y raíz (HTML), con comparación robusta y diagnóstico.
--- Coloca este script como LocalScript en StarterGui. Debe estar activado Allow HTTP Requests.
+-- 🚀 TURBO OPTIMIZER — Key System Validación API
+-- Autor: lopsidep (versión optimizada por GPT)
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
--- CONFIG
-local API_URL_JSON = "https://turbo-keys-api.onrender.com/keys"      -- Primario (JSON esperado)
-local API_URL_HTML = "https://turbo-keys-api.onrender.com/"          -- Secundario (HTML/Texto con TURBO-... visibles)
+-- ⚙️ CONFIG
+local VERIFY_URL_TEMPLATE = "https://turbo-keys-api.onrender.com/api/keys/validate/%s" -- API de validación
 local MAIN_SCRIPT = "https://raw.githubusercontent.com/lopsidep1/Opti/refs/heads/main/v_2.6_optimizer.lua"
 local LINKVERTISE_URL = "https://link-hub.net/1381493/QFlC4jzoSzbm"
 
--- Estado de keys, caché
-local KEYS_CACHE = nil
-local CACHE_AT = 0
-local CACHE_TTL = 60 -- segundos
-local FETCHING = false
+-- 📌 Función universal para hacer peticiones HTTP
+local function httpGet(url)
+    if syn and syn.request then
+        local res = syn.request({Url = url, Method = "GET"})
+        return res and res.Body
+    elseif request then
+        local res = request({Url = url, Method = "GET"})
+        return res and res.Body
+    elseif http_request then
+        local res = http_request({Url = url, Method = "GET"})
+        return res and res.Body
+    else
+        local ok, res = pcall(function()
+            return game:HttpGet(url)
+        end)
+        return ok and res or nil
+    end
+end
 
--- GUI
+-- 🖼️ GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "KeySystem"
 gui.ResetOnSpawn = false
@@ -98,165 +109,31 @@ statusLabel.TextColor3 = Color3.new(1,1,0)
 statusLabel.Text = "Conectando a API..."
 statusLabel.Parent = frame
 
--- Funciones utilitarias
-local function toUpperTrim(s)
-    return (s or ""):gsub("%s+", ""):upper()
-end
-
-local function normalizeKeys(keys)
-    local out, seen = {}, {}
-    for _, v in ipairs(keys) do
-        if typeof(v) == "string" then
-            local k = toUpperTrim(v)
-            if k ~= "" and not seen[k] then
-                seen[k] = true
-                table.insert(out, k)
-            end
-        end
-    end
-    return out
-end
-
--- Decodifica como JSON puro (array o .keys), sino extrae TURBO-... del HTML/texto
-local function parseKeys(body)
-    local ok, data = pcall(function()
-        return HttpService:JSONDecode(body)
-    end)
-    if ok then
-        if typeof(data) == "table" then
-            if data.keys and typeof(data.keys) == "table" then
-                return normalizeKeys(data.keys)
-            else
-                return normalizeKeys(data)
-            end
-        end
-    end
-    -- Si no es JSON, usar patrón
-    local keys = {}
-    for key in (body or ""):gmatch("TURBO%-%w+") do
-        table.insert(keys, key)
-    end
-    return normalizeKeys(keys)
-end
-
-local function httpGetRaw(url)
-    local finalUrl = url .. (url:find("%?") and "&" or "?") .. "nocache=" .. HttpService:GenerateGUID(false)
-    local ok, res = pcall(function()
-        return HttpService:RequestAsync({
-            Url = finalUrl,
-            Method = "GET",
-            Headers = {
-                ["Cache-Control"] = "no-cache",
-            }
-        })
-    end)
-    if not ok then
-        return false, { Success = false, StatusCode = 0, Body = tostring(res) }
-    end
-    return true, res
-end
-
--- Motor híbrido: JSON y fallback HTML
-local function fetchKeys(force)
-    if FETCHING then
-        return KEYS_CACHE or {}
-    end
-    if not force and KEYS_CACHE and (time() - CACHE_AT) < CACHE_TTL then
-        return KEYS_CACHE
-    end
-    FETCHING = true
-
-    -- Intento primario: JSON
-    local ok1, res1 = httpGetRaw(API_URL_JSON)
-    if ok1 and res1.Success then
-        local keysJson = parseKeys(res1.Body or "")
-        if #keysJson > 0 then
-            KEYS_CACHE = keysJson
-            CACHE_AT = time()
-            statusLabel.Text = "✅ API conectada"
-            statusLabel.TextColor3 = Color3.new(0,1,0)
-            FETCHING = false
-            print("Keys detectadas (JSON):", table.concat(KEYS_CACHE, ", "))
-            return keysJson
-        end
-    end
-    if not ok1 or not res1.Success then
-        if res1 and res1.StatusCode == 404 then
-            statusLabel.Text = "❌ API 404: revisa la ruta /keys"
-        elseif res1 and res1.StatusCode == 403 then
-            statusLabel.Text = "❌ API 403: acceso denegado"
-        elseif res1 and res1.StatusCode and res1.StatusCode ~= 0 then
-            statusLabel.Text = "❌ Error API (" .. tostring(res1.StatusCode) .. ")"
-        else
-            if res1 and typeof(res1.Body) == "string" and res1.Body:lower():find("http requests are not enabled", 1, true) then
-                statusLabel.Text = "❌ Activa Allow HTTP Requests"
-            else
-                statusLabel.Text = "❌ Sin conexión a API"
-            end
-        end
-        statusLabel.TextColor3 = Color3.new(1,0,0)
-    end
-
-    -- Fallback: HTML/texto
-    local ok2, res2 = httpGetRaw(API_URL_HTML)
-    if ok2 and res2.Success then
-        local keysHtml = parseKeys(res2.Body or "")
-        if #keysHtml > 0 then
-            KEYS_CACHE = keysHtml
-            CACHE_AT = time()
-            statusLabel.Text = "✅ API conectada"
-            statusLabel.TextColor3 = Color3.new(0,1,0)
-            FETCHING = false
-            print("Keys detectadas (HTML):", table.concat(KEYS_CACHE, ", "))
-            return keysHtml
-        else
-            statusLabel.Text = "❌ Sin keys detectadas"
-            statusLabel.TextColor3 = Color3.new(1,0,0)
-            FETCHING = false
-            return {}
-        end
-    else
-        if res2 and res2.StatusCode == 404 then
-            statusLabel.Text = "❌ Fallback 404 en raíz"
-        elseif res2 and res2.StatusCode == 403 then
-            statusLabel.Text = "❌ Fallback 403 en raíz"
-        elseif res2 and res2.StatusCode and res2.StatusCode ~= 0 then
-            statusLabel.Text = "❌ Fallback error (" .. tostring(res2.StatusCode) .. ")"
-        else
-            if res2 and typeof(res2.Body) == "string" and res2.Body:lower():find("http requests are not enabled", 1, true) then
-                statusLabel.Text = "❌ Activa Allow HTTP Requests"
-            else
-                statusLabel.Text = "❌ Fallback sin conexión"
-            end
-        end
-        statusLabel.TextColor3 = Color3.new(1,0,0)
-        FETCHING = false
-        return {}
-    end
-end
-
+-- ✅ Validación directa contra API
 local function validateKey(input)
-    local key = toUpperTrim(input)
+    local key = (input or ""):gsub("%s+",""):upper()
     if key == "" then
         statusLabel.Text = "❌ Ingresa una key"
         statusLabel.TextColor3 = Color3.new(1,0,0)
         return false
     end
 
-    for attempt = 1, 3 do
-        local keys = fetchKeys(true)
-        for _, k in ipairs(keys) do
-            if key == tostring(k):gsub("%s+", ""):upper() then
-                return true
-            end
-        end
-        task.wait(0.5)
+    local url = string.format(VERIFY_URL_TEMPLATE, HttpService:UrlEncode(key))
+    local body = httpGet(url)
+    if not body then
+        statusLabel.Text = "❌ Sin conexión o API caída"
+        statusLabel.TextColor3 = Color3.new(1,0,0)
+        return false
     end
 
+    local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
+    if ok and data and data.valid == true then
+        return true
+    end
     return false
 end
 
--- Eventos
+-- 🎛️ Eventos
 validateBtn.MouseButton1Click:Connect(function()
     statusLabel.Text = "🔍 Validando..."
     statusLabel.TextColor3 = Color3.new(1,1,0)
@@ -266,11 +143,9 @@ validateBtn.MouseButton1Click:Connect(function()
         statusLabel.Text = "✅ Key válida. Cargando..."
         statusLabel.TextColor3 = Color3.new(0,1,0)
         task.wait(0.4)
-
         local loaded, err = pcall(function()
             loadstring(game:HttpGet(MAIN_SCRIPT))()
         end)
-
         if loaded then
             gui:Destroy()
         else
@@ -279,18 +154,31 @@ validateBtn.MouseButton1Click:Connect(function()
             statusLabel.TextColor3 = Color3.new(1,0,0)
         end
     else
-        statusLabel.Text = "❌ Key inválida o sin conexión"
+        statusLabel.Text = "❌ Key inválida"
         statusLabel.TextColor3 = Color3.new(1,0,0)
     end
 end)
 
 getKeyBtn.MouseButton1Click:Connect(function()
-    setclipboard(LINKVERTISE_URL)
-    statusLabel.Text = "🔗 Link copiado (ve al navegador)"
-    statusLabel.TextColor3 = Color3.fromRGB(0,180,255)
+    if setclipboard then
+        setclipboard(LINKVERTISE_URL)
+        statusLabel.Text = "🔗 Link copiado (ve al navegador)"
+        statusLabel.TextColor3 = Color3.fromRGB(0,180,255)
+    else
+        statusLabel.Text = "Abre este enlace: " .. LINKVERTISE_URL
+        statusLabel.TextColor3 = Color3.fromRGB(0,180,255)
+    end
 end)
 
--- Ping inicial para mostrar estado
+-- 🔄 Ping inicial (ver si API responde)
 task.spawn(function()
-    local _ = fetchKeys(true)
+    local testUrl = string.format(VERIFY_URL_TEMPLATE, "TEST")
+    local body = httpGet(testUrl)
+    if body then
+        statusLabel.Text = "✅ API conectada"
+        statusLabel.TextColor3 = Color3.new(0,1,0)
+    else
+        statusLabel.Text = "❌ No se pudo conectar a la API"
+        statusLabel.TextColor3 = Color3.new(1,0,0)
+    end
 end)
