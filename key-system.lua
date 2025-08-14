@@ -1,7 +1,3 @@
-# 📁 Archivos para tu Repositorio
-
-## 1️⃣ key-system.lua
-```lua
 -- 🚀 TURBO OPTIMIZER - Sistema de Keys Automático
 -- API: turbo-keys-api.onrender.com
 -- Autor: lopsidep1
@@ -11,7 +7,7 @@ local HttpService = game:GetService("HttpService")
 
 -- 🔑 CONFIGURACIÓN
 local API_URL = "https://turbo-keys-api.onrender.com"
-local MAIN_SCRIPT = "https://raw.githubusercontent.com/lopsidep1/turbo-optimizer/main/main-optimizer.lua"
+local MAIN_SCRIPT = "https://raw.githubusercontent.com/lopsidep1/Opti/refs/heads/main/v_2.6_optimizer.lua"
 
 -- 🎨 GUI
 local ScreenGui = Instance.new("ScreenGui")
@@ -241,41 +237,3 @@ spawn(function()
     wait(1)
     getKeysFromAPI()
 end)
-```
-
-## 2️⃣ main-optimizer.lua
-```lua
--- Este archivo contendrá tu Turbo Optimizer principal
--- Por ahora puedes poner un placeholder:
-
-print("🚀 TURBO OPTIMIZER CARGADO EXITOSAMENTE!")
-print("✅ Sistema de keys funcionando correctamente")
-
--- Aquí irá todo tu código del Turbo Optimizer actual
-```
-
-## 3️⃣ README.md (Opcional)
-```markdown
-# 🚀 Turbo Optimizer
-
-Sistema de keys automático para Roblox.
-
-## 📋 Uso
-
-```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/lopsidep1/turbo-optimizer/main/key-system.lua"))()
-```
-
-## 🔑 Obtener Keys
-- Ejecuta el comando
-- Clic en "GET KEY" 
-- Completa el Linkvertise
-- Copia la key del sitio
-- Pega en el input y valida
-
-## ⚡ Características
-- ✅ Sistema automático de keys
-- ✅ API en la nube 24/7
-- ✅ Actualizaciones automáticas
-- ✅ Interfaz moderna
-```
