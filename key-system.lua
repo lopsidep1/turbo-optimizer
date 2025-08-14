@@ -229,7 +229,7 @@ end)
 
 -- 🔗 EVENTO: Obtener key
 GetKeyBtn.MouseButton1Click:Connect(function()
-    setclipboard("https://linkvertise.com/1282506/turbo-optimizer-keys")
+    setclipboard("https://link-hub.net/1381493/QFlC4jzoSzbm")
 end)
 
 -- 🚀 INICIALIZAR
