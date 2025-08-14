@@ -1,6 +1,5 @@
 -- 🚀 TURBO OPTIMIZER — Key System DEFINITIVO HÍBRIDO
--- GUI idéntico al de GUIHERMOSO.txt, tolerante a /keys (JSON) y raíz (HTML), sin cambiar nada del diseño.
--- Solo modifica el motor interno para funcionar siempre que la web muestre las keys visibles.
+-- GUI idéntico al de GUIHERMOSO.txt, tolerante a /keys (JSON) y raíz (HTML), con comparación robusta y diagnóstico.
 -- Coloca este script como LocalScript en StarterGui. Debe estar activado Allow HTTP Requests.
 
 local HttpService = game:GetService("HttpService")
@@ -19,7 +18,7 @@ local CACHE_AT = 0
 local CACHE_TTL = 60 -- segundos
 local FETCHING = false
 
--- GUI idéntico
+-- GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "KeySystem"
 gui.ResetOnSpawn = false
@@ -177,10 +176,10 @@ local function fetchKeys(force)
             statusLabel.Text = "✅ API conectada"
             statusLabel.TextColor3 = Color3.new(0,1,0)
             FETCHING = false
+            print("Keys detectadas (JSON):", table.concat(KEYS_CACHE, ", "))
             return keysJson
         end
     end
-    -- Mensajes de error
     if not ok1 or not res1.Success then
         if res1 and res1.StatusCode == 404 then
             statusLabel.Text = "❌ API 404: revisa la ruta /keys"
@@ -208,6 +207,7 @@ local function fetchKeys(force)
             statusLabel.Text = "✅ API conectada"
             statusLabel.TextColor3 = Color3.new(0,1,0)
             FETCHING = false
+            print("Keys detectadas (HTML):", table.concat(KEYS_CACHE, ", "))
             return keysHtml
         else
             statusLabel.Text = "❌ Sin keys detectadas"
@@ -245,8 +245,8 @@ local function validateKey(input)
 
     for attempt = 1, 3 do
         local keys = fetchKeys(true)
-        if #keys > 0 then
-            if table.find(keys, key) then
+        for _, k in ipairs(keys) do
+            if key == tostring(k):gsub("%s+", ""):upper() then
                 return true
             end
         end
